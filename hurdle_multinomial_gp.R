@@ -7,11 +7,12 @@ library(bayesplot)
 df <- read.csv("All_Files_For_Publication/data/Updated 2017 and 2015 Cross-sectional Data for Bayesian Analsysis_with_UTM.csv")
 
 #Two models to choose from - thesis or publication (includes Oct-Dec rainfall and populations of sheep cattle and goats)
-modelThesis <- FALSE
-modelPub <- FALSE
-model2 <- TRUE
-modelPres <- FALSE
-modelThesis_Oct <- FALSE
+modelThesis <- FALSE # Model 3 in Table S1
+modelPub <- FALSE # Model 4 in Table S1 
+model2 <- TRUE #Model 1 in Table S1 - Selected Model
+modelPres <- FALSE # Model 5 in Table S1
+modelThesis_Oct <- FALSE # Model 6 in Table S1
+#Note Model 2 requires the use of the hurdle-multinomial-re.stan and hurdle-multinomial-re_for_publication.r
 
 #Organize data
 df<- df%>%
