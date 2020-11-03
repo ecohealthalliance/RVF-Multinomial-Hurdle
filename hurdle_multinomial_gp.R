@@ -6,13 +6,14 @@ library(bayesplot)
 #Red data
 df <- read.csv("All_Files_For_Publication/data/Updated 2017 and 2015 Cross-sectional Data for Bayesian Analsysis_with_UTM.csv")
 
-#Two models to choose from - thesis or publication (includes Oct-Dec rainfall and populations of sheep cattle and goats)
+#Select model
 modelThesis <- FALSE # Model 3 in Table S1
-modelPub <- FALSE # Model 4 in Table S1 
-model2 <- TRUE #Model 1 in Table S1 - Selected Model
+modelPub <- FALSE # Model 4 in Table S1
+model2 <- FALSE #Model 1 in Table S1 - Selected Model
 modelPres <- FALSE # Model 5 in Table S1
 modelThesis_Oct <- FALSE # Model 6 in Table S1
 #Note Model 2 requires the use of the hurdle-multinomial-re.stan and hurdle-multinomial-re_for_publication.r
+All.One.2 <- TRUE #Model 7All variables from model2 in both the hurdle and multinomial linear predictors
 
 #Organize data
 df<- df%>%
@@ -53,6 +54,51 @@ sum(rsoftmax(c(0.2, 2, 3)))
 # Assemble the data.  All terms in the `data` block in the Stan code
 # must be defined as part of a named list.  We use normalized values for more
 # efficient sampling. This would be taken care of under the hood in `brms` models.
+if(model2 == TRUE){#Model used in the manuscript.
+  standata <- lst(
+    # Matrix of the three possible outcomes for each farm
+    Y = cbind(
+      df$TotalPopDomR_2010 - df$TotalRVFDeathsDomR.2010 - df$TotalRVFAbortionsDomR.2010,
+      df$TotalRVFDeathsDomR.2010,
+      df$TotalRVFAbortionsDomR.2010
+    ),
+    N = nrow(Y),
+    ncat = ncol(Y),
+
+    #data for residual estimation
+    outbreak = df$X3.Outbreak,
+    num_animals = df$TotalPopDomR_2010,
+
+    # Design matrix for outcomes
+    X = model.matrix(~ PrctSheep_Ave.2010.Stand +
+                       PrctGoats_Ave.2010.Stand +
+                       TotalPopDomR_2010.Stand+
+                       X5.RVF.Vax.before.Outbreak.2010 +
+                       Num_Natural_WaterSources.Ave.Stand +
+                       CumSum.2m.Rain.Stand +
+                       Prct.Rain.Days.2m.Stand,
+                     data = df),
+    K = ncol(X),
+
+    # Design matrix for hurdles (not inluding random effects)
+    X_eta = model.matrix(~Sum.Ruminants.Gained.Ave.Stand +
+                           Max.Dist.Purch.Ave.Stand +
+                           f18.Production.15 +
+                           f9.Pan.Num.Ave.Stand +
+                           f14.Size.Farm.15.Stand +
+                           f5.Wildlife.Mix.15 +
+                           CumSum.2m.Rain_Oct.Stand,
+                         data = df),
+    K_eta = ncol(X_eta),
+
+    # Gaussian Process
+    Dgp = 2,  # Dimension
+    Xgp = locs_standardized, #Values
+
+
+    prior_only = FALSE # Change this to sample from the priors rather than posterior
+  )
+}
 if(modelThesis == TRUE){
 standata <- lst(
   # Matrix of the three possible outcomes for each farm
@@ -190,51 +236,6 @@ if(modelPub == TRUE){
 }
 
 
-if(model2 == TRUE){#Can't do this - %Cattle and %sheep are collinear
-  standata <- lst(
-    # Matrix of the three possible outcomes for each farm
-    Y = cbind(
-      df$TotalPopDomR_2010 - df$TotalRVFDeathsDomR.2010 - df$TotalRVFAbortionsDomR.2010,
-      df$TotalRVFDeathsDomR.2010,
-      df$TotalRVFAbortionsDomR.2010
-    ),
-    N = nrow(Y),
-    ncat = ncol(Y),
-
-    #data for residual estimation
-    outbreak = df$X3.Outbreak,
-    num_animals = df$TotalPopDomR_2010,
-
-    # Design matrix for outcomes
-    X = model.matrix(~ PrctSheep_Ave.2010.Stand +
-                       PrctGoats_Ave.2010.Stand +
-                       TotalPopDomR_2010.Stand+
-                       X5.RVF.Vax.before.Outbreak.2010 +
-                       Num_Natural_WaterSources.Ave.Stand +
-                       CumSum.2m.Rain.Stand +
-                       Prct.Rain.Days.2m.Stand,
-                     data = df),
-    K = ncol(X),
-
-    # Design matrix for hurdles (not inluding random effects)
-    X_eta = model.matrix(~Sum.Ruminants.Gained.Ave.Stand +
-                           Max.Dist.Purch.Ave.Stand +
-                           f18.Production.15 +
-                           f9.Pan.Num.Ave.Stand +
-                           f14.Size.Farm.15.Stand +
-                           f5.Wildlife.Mix.15 +
-                           CumSum.2m.Rain_Oct.Stand,
-                         data = df),
-    K_eta = ncol(X_eta),
-
-    # Gaussian Process
-    Dgp = 2,  # Dimension
-    Xgp = locs_standardized, #Values
-
-
-    prior_only = FALSE # Change this to sample from the priors rather than posterior
-  )
-}
 
 if(modelPres == TRUE){
   standata <- lst(
@@ -282,12 +283,75 @@ if(modelPres == TRUE){
     prior_only = FALSE # Change this to sample from the priors rather than posterior
   )
 }
+
+if(All.One.2 == TRUE){#Can't do this - %Cattle and %sheep are collinear
+  standata <- lst(
+    # Matrix of the three possible outcomes for each farm
+    Y = cbind(
+      df$TotalPopDomR_2010 - df$TotalRVFDeathsDomR.2010 - df$TotalRVFAbortionsDomR.2010,
+      df$TotalRVFDeathsDomR.2010,
+      df$TotalRVFAbortionsDomR.2010
+    ),
+    N = nrow(Y),
+    ncat = ncol(Y),
+
+    #data for residual estimation
+    outbreak = df$X3.Outbreak,
+    num_animals = df$TotalPopDomR_2010,
+
+    # Design matrix for outcomes
+    X = model.matrix(~ PrctSheep_Ave.2010.Stand +
+                       PrctGoats_Ave.2010.Stand +
+                       TotalPopDomR_2010.Stand+
+                       X5.RVF.Vax.before.Outbreak.2010 +
+                       Num_Natural_WaterSources.Ave.Stand +
+                       CumSum.2m.Rain.Stand +
+                       Prct.Rain.Days.2m.Stand+
+                       Sum.Ruminants.Gained.Ave.Stand +
+                       Max.Dist.Purch.Ave.Stand +
+                       f18.Production.15 +
+                       f9.Pan.Num.Ave.Stand +
+                       f14.Size.Farm.15.Stand +
+                       f5.Wildlife.Mix.15 +
+                       CumSum.2m.Rain_Oct.Stand,
+                     data = df),
+    K = ncol(X),
+
+    # Design matrix for hurdles (not inluding random effects)
+    X_eta = model.matrix(~PrctSheep_Ave.2010.Stand +
+                           PrctGoats_Ave.2010.Stand +
+                           TotalPopDomR_2010.Stand+
+                           X5.RVF.Vax.before.Outbreak.2010 +
+                           Num_Natural_WaterSources.Ave.Stand +
+                           CumSum.2m.Rain.Stand +
+                           Prct.Rain.Days.2m.Stand+
+                           Sum.Ruminants.Gained.Ave.Stand +
+                           Max.Dist.Purch.Ave.Stand +
+                           f18.Production.15 +
+                           f9.Pan.Num.Ave.Stand +
+                           f14.Size.Farm.15.Stand +
+                           f5.Wildlife.Mix.15 +
+                           CumSum.2m.Rain_Oct.Stand,
+                         data = df),
+    K_eta = ncol(X_eta),
+
+    # Gaussian Process
+    Dgp = 2,  # Dimension
+    Xgp = locs_standardized, #Values
+
+
+    prior_only = FALSE # Change this to sample from the priors rather than posterior
+  )
+}
+
+
 # Sample from the model.  Use cores as you have available.
 hmgp_fit <- sampling(
   hmgp_mod,
   data = standata,
   chains = 4,
   iter = 5000,
+  control = list(adapt_delta = 0.90),
   cores = 4)
 
 # Examine the model parameters and diagnostic values.
@@ -324,6 +388,10 @@ if(modelThesis_Oct == TRUE){
   hm_mod.mcmc <- As.mcmc.list(hmgp_fit)
   save(hm_mod.mcmc, file = "All_Files_For_Publication/NR_hurdle_GP_mcmc_Thesis_Oct.rdata")
 }
+  if(All.One.2 == TRUE){
+    hm_mod.mcmc <- As.mcmc.list(hmgp_fit)
+    save(hm_mod.mcmc, file = "All_Files_For_Publication/NR_hurdle_GP_mcmc_AllOne2prct.rdata")
+  }
 }
 
 # Dot plots of variables
@@ -421,4 +489,9 @@ if(modelThesis_Oct == TRUE){
   hmgp_fit@stanmodel@dso <- new("cxxdso")
   saveRDS(hmgp_fit,  "All_Files_For_Publication/NR_hurdle_GP_Thesis_Oct.rds")
 }
+  if(All.One.2 == TRUE){
+    hmgp_fit@stanmodel@dso <- new("cxxdso")
+    saveRDS(hmgp_fit,  "All_Files_For_Publication/NR_hurdle_GP_mcmc_AllOne2prct.rds")
+  }
+
 }
